@@ -135,6 +135,7 @@ th.fh{width:74px}
 .fb:hover{background:var(--surface-2)}
 .fb.active{background:var(--text);color:var(--bg);border-color:var(--text)}
 .filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+.f-day-select{display:none}
 .frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .frow-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-3);min-width:62px}
 .fsel{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:inherit;cursor:pointer;min-width:160px}
@@ -287,10 +288,31 @@ th.fh{width:74px}
   .tprc-sec,.tprf,.tprform,.tprs{display:none}
   .tpr{gap:8px;padding:10px 12px}
   .tpr-head .tprf,.tpr-head .tprform,.tpr-head .tprs{display:none}
+  #fr{display:none}
+  .f-day-select{display:inline-block}
+}
+
+/* Rotate-to-landscape prompt — phones in portrait only (tablets keep both) */
+#rotate-nag{display:none}
+.rotate-icon{font-size:60px;line-height:1;animation:rotatehint 2.4s ease-in-out infinite;transform-origin:center}
+@keyframes rotatehint{0%,35%{transform:rotate(0)}55%,90%{transform:rotate(-90deg)}100%{transform:rotate(-90deg)}}
+.rotate-title{font-size:19px;font-weight:700}
+.rotate-sub{font-size:13px;color:var(--text-2);max-width:300px;line-height:1.5}
+.rotate-dismiss{margin-top:6px;font-size:12px;color:var(--text-3);background:transparent;border:1px solid var(--border-strong);border-radius:99px;padding:8px 16px;cursor:pointer;font-family:inherit}
+@media (orientation:portrait) and (max-width:600px){
+  #rotate-nag{display:flex;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:32px}
+  #rotate-nag.dismissed{display:none}
 }
 </style>
 </head>
 <body>
+
+<div id="rotate-nag">
+  <div class="rotate-icon">📱</div>
+  <div class="rotate-title">Rotate your phone</div>
+  <div class="rotate-sub">This tracker has a full bracket and wide tables — it's best viewed in landscape on a phone.</div>
+  <button class="rotate-dismiss" onclick="document.getElementById('rotate-nag').classList.add('dismissed')">View in portrait anyway</button>
+</div>
 
 <div class="hd">
   <button id="theme-btn" class="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
@@ -349,6 +371,7 @@ th.fh{width:74px}
     <div class="frow">
       <span class="frow-label">Day</span>
       <div class="fr" id="fr" style="margin:0"></div>
+      <select class="fsel f-day-select" id="f-day" onchange="setFilter('day',this.value)" style="min-width:140px"></select>
     </div>
     <div class="frow">
       <button class="freset" onclick="resetFilters()">Reset filters</button>
@@ -813,6 +836,10 @@ function buildFilterControls(){
   document.getElementById('fr').innerHTML =
     `<button class="fb${FILTER.day==='all'?' active':''}" onclick="setFilter('day','all')">All</button>`+
     days.map(d=>`<button class="fb${FILTER.day===d?' active':''}" onclick="setFilter('day','${d}')">${d}</button>`).join('');
+  const fday=document.getElementById('f-day');
+  if(fday) fday.innerHTML =
+    `<option value="all"${FILTER.day==='all'?' selected':''}>All days</option>`+
+    days.map(d=>`<option value="${d}"${FILTER.day===d?' selected':''}>${d}</option>`).join('');
 }
 
 function setFilter(key,val){ FILTER[key]=val; buildFilterControls(); applyFilters(); }
