@@ -2,7 +2,7 @@
 
 A single-file, self-updating tracker for the 2026 FIFA World Cup (USA · Canada · Mexico). Open it in any browser — no install, no build step, no account.
 
-**Live site:** `https://owlball.github.io/world-cup-tracker/`
+**Live site:** `https://owlball.github.io/world.cup.tracker/`
 
 
 ---
