@@ -172,7 +172,7 @@ th.fh{width:74px}
 .tpr-head span,.tpr-head .tprn{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-3)}
 .tprk{width:24px;font-weight:600;color:var(--text-3);font-variant-numeric:tabular-nums;flex-shrink:0}
 .tprg{width:30px;font-weight:600;color:var(--text-2);flex-shrink:0}
-.tprn{flex:1;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tprn{flex:1;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;min-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tprc{width:42px;text-align:center;font-variant-numeric:tabular-nums;color:var(--text-2);flex-shrink:0}
 .tprc.pts{font-weight:700;color:var(--text)}
 .tprc{width:34px}
@@ -181,7 +181,7 @@ th.fh{width:74px}
 .tpr-head .tprf{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-3)}
 .tprs{width:106px;text-align:right;flex-shrink:0}
 .tp-scroll{overflow-x:auto}
-#tp-list{min-width:880px}
+#tp-list{min-width:950px}
 .tpb{font-size:10px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.3px;white-space:nowrap}
 .tpb.locked{background:var(--surface-2);color:var(--text-2);border:1px solid var(--border-strong)}
 .tpb.prov{background:transparent;color:var(--text-3);border:1px dashed var(--border-strong)}
@@ -233,6 +233,10 @@ th.fh{width:74px}
 .cf-cell-full{font-size:11px;color:var(--text-3)}
 .cf-table td.pos{color:var(--form-w)}.cf-table td.neg{color:var(--form-l)}
 .cf-matrix-wrap{overflow-x:auto}
+#cf-perf{overflow-x:auto}
+.cf-perf-stacked{display:none}
+.cf-stack-block{margin-bottom:18px}
+.cf-stack-h{font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
 .cf-mx{width:100%;table-layout:auto;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
 .cf-mx th{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-3);text-align:center;padding:7px 6px;border-bottom:1px solid var(--border);font-weight:700;white-space:nowrap}
 .cf-mx th:first-child{width:1%}
@@ -260,6 +264,30 @@ th.fh{width:74px}
 .legend2{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-2);margin-bottom:14px}
 .legend2 .li{gap:6px}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);text-align:center}
+
+/* ---- Mobile ---- */
+@media (max-width:640px){
+  body{padding:12px}
+  .hd h1{font-size:20px;padding-right:84px}
+  .hd p{font-size:12px}
+  .theme-toggle{top:4px;font-size:11px;padding:5px 10px}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;padding-bottom:4px}
+  .tabs::-webkit-scrollbar{height:0}
+  .tab{flex:0 0 auto;white-space:nowrap;font-size:13px;padding:7px 12px}
+  th{padding:8px 5px}
+  td{padding-left:5px;padding-right:5px}
+  th.fh, td.fc{display:none}          /* Form column is too tight on phones */
+  .mc{padding:10px 12px 12px}
+  .mt{font-size:13px}
+  .cf-h{font-size:13px}
+  .cf-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+  .cf-perf-wide{display:none}
+  .cf-perf-stacked{display:block}
+  #tp-list{min-width:0}
+  .tprc-sec,.tprf,.tprform,.tprs{display:none}
+  .tpr{gap:8px;padding:10px 12px}
+  .tpr-head .tprf,.tpr-head .tprform,.tpr-head .tprs{display:none}
+}
 </style>
 </head>
 <body>
@@ -679,8 +707,8 @@ function renderThirdRace(){
   const rows=computeThirdRace();
   const head=`<div class="tpr tpr-head">
     <span class="tprk">#</span><span class="tprg">Grp</span><div class="tprn">Team</div>
-    <span class="tprc">W</span><span class="tprc">D</span><span class="tprc">L</span>
-    <span class="tprc">GF</span><span class="tprc">GA</span><span class="tprc">GD</span><span class="tprc">Pts</span>
+    <span class="tprc tprc-sec">W</span><span class="tprc tprc-sec">D</span><span class="tprc tprc-sec">L</span>
+    <span class="tprc tprc-sec">GF</span><span class="tprc tprc-sec">GA</span><span class="tprc">GD</span><span class="tprc">Pts</span>
     <span class="tprform">Form</span>
     <div class="tprf">Final group game</div>
     <span class="tprs">Status</span></div>`;
@@ -695,8 +723,8 @@ function renderThirdRace(){
       <span class="tprk">${i+1}</span>
       <span class="tprg">${r.group}</span>
       <div class="tprn"><span class="fl">${flag(r.n)}</span>${r.n}${rankBadge(r.n)}</div>
-      <span class="tprc">${r.w}</span><span class="tprc">${r.d}</span><span class="tprc">${r.l}</span>
-      <span class="tprc">${r.gf}</span><span class="tprc">${r.ga}</span>
+      <span class="tprc tprc-sec">${r.w}</span><span class="tprc tprc-sec">${r.d}</span><span class="tprc tprc-sec">${r.l}</span>
+      <span class="tprc tprc-sec">${r.gf}</span><span class="tprc tprc-sec">${r.ga}</span>
       <span class="tprc">${r.gd>0?'+'+r.gd:r.gd}</span>
       <span class="tprc pts">${r.pts}</span>
       <span class="tprform">${formDots(r.n,r.group)}</span>
@@ -1397,7 +1425,7 @@ function renderConfeds(){
       + `<td class="${gdc}">${gd>0?'+':''}${gd}</td>`
       + (opts.win?`<td><strong>${Math.round(s.w/p*100)}%</strong></td>`:'');
   };
-  const perfHTML=`<table class="cf-table cf-3">
+  const wideHTML=`<div class="cf-perf-wide"><table class="cf-table cf-3">
     <thead>
       <tr class="cf-grp-row">
         <th></th>
@@ -1417,8 +1445,15 @@ function renderConfeds(){
       ${seg(r.g,{})}
       ${seg(r.k,{sep:true})}
       ${seg(r.a,{sep:true,goals:true,win:true})}
-    </tr>`).join('')}</tbody></table>`;
-  document.getElementById('cf-perf').innerHTML=perfHTML;
+    </tr>`).join('')}</tbody></table></div>`;
+  const stackTable=(label,key,opts)=>`<div class="cf-stack-block">
+    <div class="cf-stack-h">${label}</div>
+    <table class="cf-table">
+      <thead><tr><th>Conf.</th><th>P</th><th>W-D-L</th>${opts.goals?'<th>GF</th><th>GA</th>':''}<th>GD</th>${opts.win?'<th>Win%</th>':''}</tr></thead>
+      <tbody>${rows.map(r=>`<tr><td class="cf-cell-name">${confChip(r.c)}</td>${seg(r[key],opts)}</tr>`).join('')}</tbody>
+    </table></div>`;
+  const stackedHTML=`<div class="cf-perf-stacked">${stackTable('Group stage','g',{})}${stackTable('Knockouts','k',{})}${stackTable('Overall','a',{goals:true,win:true})}</div>`;
+  document.getElementById('cf-perf').innerHTML=wideHTML+stackedHTML;
 
   // Head-to-head matrix — each opponent confederation expands into P / W-D-L / GD
   const present=CONF_LIST.filter(c=>agg[c].all.w+agg[c].all.d+agg[c].all.l>0);
