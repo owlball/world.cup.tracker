@@ -135,7 +135,8 @@ th.fh{width:74px}
 .fb:hover{background:var(--surface-2)}
 .fb.active{background:var(--text);color:var(--bg);border-color:var(--text)}
 .filters{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
-.f-day-select{display:none}
+#fr{display:none}
+.f-day-select{display:inline-block;min-width:150px}
 .frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .frow-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-3);min-width:62px}
 .fsel{font-size:13px;padding:6px 10px;border-radius:8px;border:1px solid var(--border-strong);background:var(--bg);color:var(--text);font-family:inherit;cursor:pointer;min-width:160px}
@@ -1241,12 +1242,28 @@ const KO_SCHED = [
 // Knockout results (regulation score; ph/pa = penalty shootout goals).
 // Baked from games already played; the live feed updates/extends this.
 const KO_RESULTS = {
+  // Round of 32
   73:{hs:0,as:1},             // South Africa 0–1 Canada
-  76:{hs:2,as:1},             // Brazil 2–1 Japan
   74:{hs:1,as:1,ph:3,pa:4},   // Germany 1–1 Paraguay (Paraguay win 4–3 pens)
   75:{hs:1,as:1,ph:2,pa:3},   // Netherlands 1–1 Morocco (Morocco win 3–2 pens)
+  76:{hs:2,as:1},             // Brazil 2–1 Japan
   77:{hs:3,as:0},             // France 3–0 Sweden
-  78:{hs:1,as:2}              // Ivory Coast 1–2 Norway
+  78:{hs:1,as:2},             // Ivory Coast 1–2 Norway
+  79:{hs:2,as:0},             // Mexico 2–0 Ecuador
+  80:{hs:2,as:1},             // England 2–1 DR Congo
+  81:{hs:2,as:0},             // USA 2–0 Bosnia & Herz.
+  82:{hs:3,as:2},             // Belgium 3–2 Senegal (a.e.t.)
+  83:{hs:2,as:1},             // Portugal 2–1 Croatia
+  84:{hs:3,as:0},             // Spain 3–0 Austria
+  85:{hs:2,as:0},             // Switzerland 2–0 Algeria
+  86:{hs:3,as:2},             // Argentina 3–2 Cape Verde (a.e.t.)
+  87:{hs:1,as:0},             // Colombia 1–0 Ghana
+  88:{hs:1,as:1,ph:2,pa:4},   // Australia 1–1 Egypt (Egypt win 4–2 pens)
+  // Round of 16
+  89:{hs:0,as:3},             // Canada 0–3 Morocco
+  90:{hs:0,as:1},             // Paraguay 0–1 France
+  91:{hs:1,as:2},             // Brazil 1–2 Norway
+  92:{hs:2,as:3}              // Mexico 2–3 England
 };
 function koTeamFull(slot){
   if(slot.p) return resolveSlot(slot).team;
@@ -1372,6 +1389,21 @@ function renderBracketTree(){
   if(window.twemoji) twemoji.parse(document.getElementById('bracket'));
 }
 renderBracketTree();
+// Default the Day filter to today's matches (or the next match day if none today).
+function localTodayISO(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function defaultDayFilter(){
+  const set=new Set(M.map(m=>m[0]));
+  try{ KO_SCHED.forEach(k=>set.add(k.date)); }catch(e){}
+  const list=[...set].map(d=>({d,iso:DAY_DATE[d]||''})).filter(x=>x.iso).sort((a,b)=>a.iso.localeCompare(b.iso));
+  if(!list.length) return 'all';
+  const today=localTodayISO();
+  const pick = list.find(x=>x.iso===today) || list.find(x=>x.iso>today) || list[list.length-1];
+  return pick ? pick.d : 'all';
+}
+FILTER.day = defaultDayFilter();
 renderFilters(); // rebuild day pills (incl. knockout dates) and results now that KO data is defined
 
 // ===== CONFEDERATIONS =====
