@@ -266,6 +266,13 @@ th.fh{width:74px}
 .legend2{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-2);margin-bottom:14px}
 .legend2 .li{gap:6px}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);text-align:center}
+.tj-sum{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px}
+.tj-sum-top{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700}
+.tj-sum-top .fl img,.tj-sum-top .fl{width:24px;height:24px}
+.tj-sum-name{font-weight:700}
+.tj-sum-line{font-size:13px;color:var(--text-2);margin-top:6px}
+.tj-alive{color:#16a34a;font-weight:700}
+.tj-out{color:#dc2626;font-weight:700}
 
 /* ---- Mobile ---- */
 @media (max-width:640px){
@@ -330,6 +337,7 @@ th.fh{width:74px}
   <button class="tab active" onclick="tab('g',this)">Standings</button>
   <button class="tab" onclick="tab('tp',this)">3rd-place race</button>
   <button class="tab" onclick="tab('r',this)">Results & fixtures</button>
+  <button class="tab" onclick="tab('tj',this)">Team journey</button>
   <button class="tab" onclick="tab('s',this)">Stats</button>
   <button class="tab" onclick="tab('cf',this)">Confederations</button>
   <button class="tab" onclick="tab('k',this)">Knockout bracket</button>
@@ -409,10 +417,26 @@ th.fh{width:74px}
   </div>
 </div>
 
+<div id="tj" class="sec">
+  <div class="filters" style="flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="frow-label">Team</span>
+    <select class="fsel" id="tj-team" onchange="renderJourney()" style="min-width:180px"></select>
+  </div>
+  <div id="tj-body"></div>
+</div>
+
 <div class="footer">Live scores via ESPN's public feed · auto-refreshes every 10 min when open · falls back to saved data (verified Jun 24) if offline · Open in any browser to share</div>
 
 <script>
 const ENG = '\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67\uDB40\uDC7F';
+
+// ── Live-data proxy ────────────────────────────────────────────────
+// Paste your Cloudflare Worker URL between the quotes to use it as the
+// preferred live-data source, e.g. "https://wc.yourname.workers.dev".
+// Leave it empty ("") to fall back to the public proxies.
+const LIVE_PROXY = "https://wc-proxy.owenlucasballesteros.workers.dev";
+function proxify(u){ return LIVE_PROXY ? LIVE_PROXY.replace(/\/+$/,'') + '/?url=' + encodeURIComponent(u) : null; }
+
 const SCO = '\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74\uDB40\uDC7F';
 
 const FLAG = {
@@ -1263,7 +1287,27 @@ const KO_RESULTS = {
   89:{hs:0,as:3},             // Canada 0–3 Morocco
   90:{hs:0,as:1},             // Paraguay 0–1 France
   91:{hs:1,as:2},             // Brazil 1–2 Norway
-  92:{hs:2,as:3}              // Mexico 2–3 England
+  92:{hs:2,as:3},             // Mexico 2–3 England
+  93:{hs:0,as:1},             // Portugal 0–1 Spain
+  94:{hs:1,as:4}              // USA 1–4 Belgium
+};
+// Knockout scorers (baked; best-effort from match reports). a = home slot, b = away slot.
+const KO_SCORERS = {
+  73:{a:[], b:[{n:'Eustáquio',m:'90+2'}]},
+  74:{a:[{n:'Havertz'}], b:[{n:'Enciso',m:42}]},
+  76:{a:[{n:'Casemiro'},{n:'Martinelli',m:'90+'}], b:[{n:'Sano',m:28}]},
+  77:{a:[{n:'Mbappé'},{n:'Barcola'},{n:'Mbappé'}], b:[]},
+  79:{a:[{n:'Quiñones'},{n:'Jiménez'}], b:[]},
+  81:{a:[{n:'Balogun',m:45},{n:'Tillman',m:82}], b:[]},
+  83:{a:[{n:'Ronaldo',m:68,pen:true},{n:'G. Ramos',m:'90+4'}], b:[{n:'Perišić',m:53}]},
+  84:{a:[{n:'Oyarzabal',m:3},{n:'Porro',m:66},{n:'Oyarzabal',m:89}], b:[]},
+  85:{a:[{n:'Embolo',m:10},{n:'Ndoye',m:46}], b:[]},
+  86:{a:[{n:'Messi',m:29},{n:'L. Martínez',m:92},{n:'Borges',m:111,og:true}], b:[{n:'Duarte',m:59},{n:'Cabral',m:103}]},
+  87:{a:[{n:'Arias',m:14}], b:[]},
+  88:{a:[{n:'Hany',m:55,og:true}], b:[{n:'Ashour',m:13}]},
+  89:{a:[], b:[{n:'Ounahi',m:50},{n:'Ounahi',m:82},{n:'Rahimi',m:'90+'}]},
+  90:{a:[], b:[{n:'Mbappé',pen:true}]},
+  91:{a:[{n:'Neymar',m:'90+10',pen:true}], b:[{n:'Haaland',m:79},{n:'Haaland',m:90}]}
 };
 function koTeamFull(slot){
   if(slot.p) return resolveSlot(slot).team;
@@ -1324,6 +1368,20 @@ function koCard(k){
   const fb=sb.team?`<span class="fl">${flag(sb.team)}</span>`:'';
   const mid=r?`<div class="ms">${r.hs} – ${r.as}</div>`:`<div class="ms p">vs</div>`;
   const pens=(r&&(r.ph!=null||r.win))?`<div class="sc-note">${w} advance${r.ph!=null?` ${Math.max(r.ph,r.pa)}–${Math.min(r.ph,r.pa)} on penalties`:' on penalties'}</div>`:'';
+  // scorers (baked KO_SCORERS)
+  let scorersHTML='';
+  if(r){
+    const sc=(typeof KO_SCORERS!=='undefined')?KO_SCORERS[k.num]:null;
+    if(sc){
+      const fmt=list=>list.map(s=>`${s.n}${s.og?' (OG)':''}${s.pen?' (pen)':''}${s.m?` ${s.m}'`:''}`).join(', ');
+      scorersHTML=`<div class="scorers">
+        <div class="sc-col h">${sc.a&&sc.a.length?`${fmt(sc.a)} <span aria-hidden="true">⚽</span>`:''}</div>
+        <div class="sc-col a">${sc.b&&sc.b.length?`<span aria-hidden="true">⚽</span> ${fmt(sc.b)}`:''}</div>
+      </div>`;
+    }else if(r.hs>0||r.as>0){
+      scorersHTML=`<div class="sc-note">scorer details unavailable</div>`;
+    }
+  }
   return `<div class="mc">
     <div class="mm"><span>${k.round} · M${k.num}</span><span class="ko-tag">${r?'Full time':k.time}</span></div>
     <div class="mt">
@@ -1331,6 +1389,7 @@ function koCard(k){
       ${mid}
       <div class="te r ${bWin?'win':''}">${fb}<span class="tn-name">${sb.label}</span>${sb.team?rankBadge(sb.team):''}</div>
     </div>
+    ${scorersHTML}
     ${pens}
     <div class="mfoot"><span aria-hidden="true">📍</span><span>${koVenue(k.city)}</span></div>
   </div>`;
@@ -1405,6 +1464,73 @@ function defaultDayFilter(){
 }
 FILTER.day = defaultDayFilter();
 renderFilters(); // rebuild day pills (incl. knockout dates) and results now that KO data is defined
+
+// ===== TEAM JOURNEY =====
+function buildJourneyTeams(){
+  const teams=[...new Set(M.flatMap(m=>[m[2],m[3]]))].sort((a,b)=>a.localeCompare(b));
+  const sel=document.getElementById('tj-team');
+  if(sel) sel.innerHTML = `<option value="all">Choose a team…</option>`+
+    teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+function teamJourney(team){
+  const rows=[];
+  M.forEach(m=>{ if(m[2]===team||m[3]===team) rows.push({iso:DAY_DATE[m[0]]||'', day:m[0], kind:'g', m}); });
+  try{ KO_SCHED.forEach(k=>{ const ta=koTeamFull(k.a), tb=koTeamFull(k.b); if(ta===team||tb===team) rows.push({iso:DAY_DATE[k.date]||'', day:k.date, kind:'k', k}); }); }catch(e){}
+  rows.sort((a,b)=>a.iso.localeCompare(b.iso));
+  return rows;
+}
+function renderJourney(){
+  const sel=document.getElementById('tj-team');
+  const box=document.getElementById('tj-body');
+  if(!box) return;
+  const team = sel ? sel.value : 'all';
+  if(!team || team==='all'){ box.innerHTML=`<div class="note">Pick a team above to see every match they've played and their upcoming fixtures, group stage through the final.</div>`; return; }
+  const rows=teamJourney(team);
+  if(!rows.length){ box.innerHTML=`<div class="note">No matches found for ${team}.</div>`; return; }
+  // Record + status across the whole tournament
+  let w=0,d=0,l=0,gf=0,ga=0;
+  const played=[], upcoming=[];
+  rows.forEach(r=>{
+    if(r.kind==='g'){
+      const [,,h,a,hs,as]=r.m;
+      if(hs===null){ upcoming.push(r); return; }
+      played.push(r);
+      const mine=h===team?hs:as, opp=h===team?as:hs;
+      gf+=mine; ga+=opp;
+      if(mine>opp)w++; else if(mine<opp)l++; else d++;
+    }else{
+      const rr=KO_RESULTS[r.k.num];
+      if(!rr){ upcoming.push(r); return; }
+      played.push(r);
+      const ta=koTeamFull(r.k.a);
+      const mine=ta===team?rr.hs:rr.as, opp=ta===team?rr.as:rr.hs;
+      gf+=mine; ga+=opp;
+      (koWinner(r.k.num)===team)?w++:l++;   // knockouts are always decisive
+    }
+  });
+  let status;
+  const last=played[played.length-1];
+  if(upcoming.length){
+    const nx=upcoming[0];
+    status=`<span class="tj-alive">Still in</span> · next: ${nx.kind==='k'?nx.k.round:'Group stage'}, ${nx.day}`;
+  }else if(last && last.kind==='k'){
+    status = (koWinner(last.k.num)===team)
+      ? (last.k.round==='Final' ? `<span class="tj-alive">🏆 Champions</span>` : `<span class="tj-alive">Advanced</span> past the ${last.k.round}`)
+      : `<span class="tj-out">Eliminated</span> · ${last.k.round}`;
+  }else{
+    status=`<span class="tj-out">Eliminated</span> · group stage`;
+  }
+  const summary=`<div class="tj-sum">
+    <div class="tj-sum-top"><span class="fl">${flag(team)}</span><span class="tj-sum-name">${team}</span>${rankBadge(team)}</div>
+    <div class="tj-sum-line">${played.length} played · ${w}W ${d}D ${l}L · ${gf}–${ga} goals</div>
+    <div class="tj-sum-line">${status}</div>
+  </div>`;
+  box.innerHTML = summary + rows.map(r=>`<div class="dh">${r.day}</div>`+(r.kind==='g'?renderCard(r.m):koCard(r.k))).join('');
+  if(window.twemoji) twemoji.parse(box);
+}
+buildJourneyTeams();
+renderJourney();
+
 
 // ===== CONFEDERATIONS =====
 // Every played match (group + knockout). Shootout winners resolved via koWinner.
@@ -1540,6 +1666,7 @@ function tab(id,btn){
   document.querySelectorAll('.sec').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if(id==='cf') renderConfeds();
+  if(id==='tj') renderJourney();
 }
 
 // ===== THEME TOGGLE =====
@@ -1577,7 +1704,7 @@ const FIFA_NAME={
 function fifaName(n){ return FIFA_NAME[n] || mapName(n); }
 async function loadFifaRanks(){
   const base='https://www.fifa.com/api/ranking-overview?locale=en';
-  const urls=[base,'https://corsproxy.io/?url='+encodeURIComponent(base),'https://api.allorigins.win/raw?url='+encodeURIComponent(base)];
+  const urls=[...(proxify(base)?[proxify(base)]:[]),base,'https://corsproxy.io/?url='+encodeURIComponent(base),'https://api.allorigins.win/raw?url='+encodeURIComponent(base)];
   let data=null;
   for(const u of urls){ try{ const r=await fetch(u,{cache:'no-store'}); if(r.ok){ data=await r.json(); if(data) break; } }catch(e){} }
   if(!data||!data.rankings) return;
@@ -1658,7 +1785,7 @@ async function fetchScorers(row, eventId){
   // already cached with scorers that match this exact final score -> skip forever
   if(cached && cached.scorers && cached.finalScore===`${hs}-${as}`) return false;
   const base=`https://site.web.api.espn.com/apis/site/v2/sports/soccer/fifa.world/summary?event=${eventId}`;
-  const urls=[base,'https://corsproxy.io/?url='+encodeURIComponent(base),'https://api.allorigins.win/raw?url='+encodeURIComponent(base)];
+  const urls=[...(proxify(base)?[proxify(base)]:[]),base,'https://corsproxy.io/?url='+encodeURIComponent(base),'https://api.allorigins.win/raw?url='+encodeURIComponent(base)];
   let data=null;
   for(const u of urls){ try{ data=await tryFetch(u); if(data) break; }catch(e){ data=null; } }
   if(!data) return false;
@@ -1758,7 +1885,7 @@ async function loadLiveData(){
     'https://api.allorigins.win/raw?url='+encodeURIComponent(direct)
   ];
   let data=null;
-  for(const url of [direct,...proxied]){
+  for(const url of [...(proxify(direct)?[proxify(direct)]:[]),direct,...proxied]){
     try{ data=await tryFetch(url); if(data&&data.events) break; }catch(e){ data=null; }
   }
   if(!data||!data.events){
