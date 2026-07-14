@@ -105,6 +105,8 @@ th.fh{width:74px}
 .ko-sep{margin:22px 0 10px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--hl-accent);border-top:1px solid var(--border-strong);padding-top:14px}
 .ko-tag{color:var(--text-3);font-weight:500}
 .ts-wrap{margin-top:10px;border-top:1px solid var(--border);padding-top:6px}
+.ts-inline{margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
+.ts-cap{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px}
 .ts-wrap summary{font-size:11px;color:var(--text-3);cursor:pointer;text-transform:uppercase;letter-spacing:.4px;list-style:none}
 .ts-wrap summary::-webkit-details-marker{display:none}
 .ts-wrap summary::before{content:'▸';font-size:9px;margin-right:5px}
@@ -271,6 +273,8 @@ th.fh{width:74px}
 .tj-sum-top .fl img,.tj-sum-top .fl{width:24px;height:24px}
 .tj-sum-name{font-weight:700}
 .tj-sum-line{font-size:13px;color:var(--text-2);margin-top:6px}
+.tj-form{display:flex;align-items:center;gap:8px}
+.tj-form-dir{font-size:11px;color:var(--text-3)}
 .tj-alive{color:#16a34a;font-weight:700}
 .tj-out{color:#dc2626;font-weight:700}
 
@@ -434,7 +438,7 @@ const ENG = '\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC65\uDB40\uDC6E\uDB40\
 // Paste your Cloudflare Worker URL between the quotes to use it as the
 // preferred live-data source, e.g. "https://wc.yourname.workers.dev".
 // Leave it empty ("") to fall back to the public proxies.
-const LIVE_PROXY = "https://wc-proxy.owenlucasballesteros.workers.dev";
+const LIVE_PROXY = "";
 function proxify(u){ return LIVE_PROXY ? LIVE_PROXY.replace(/\/+$/,'') + '/?url=' + encodeURIComponent(u) : null; }
 
 const SCO = '\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC73\uDB40\uDC63\uDB40\uDC74\uDB40\uDC7F';
@@ -565,7 +569,7 @@ function hexToRgb(h){ h=(''+h).replace('#',''); if(h.length===3) h=h.split('').m
 function colorDist(a,b){ const x=hexToRgb(a),y=hexToRgb(b); return Math.sqrt((x[0]-y[0])**2+(x[1]-y[1])**2+(x[2]-y[2])**2); }
 function statsOf(c){
   const o={}; (c.statistics||[]).forEach(s=>{ o[s.name]=s.displayValue; });
-  return { poss:o.possessionPct, shots:o.totalShots, sot:o.shotsOnTarget, fouls:o.foulsCommitted, corners:o.wonCorners };
+  return { poss:o.possessionPct, shots:o.totalShots, sot:o.shotsOnTarget, xg:(o.expectedGoals||o.appExpectedGoals||o.xG||o.ESPNxG), fouls:o.foulsCommitted, corners:o.wonCorners };
 }
 
 const GROUP_TEAMS = {
@@ -949,9 +953,10 @@ function renderCard(m){
       bar('Possession', ts.home.poss, ts.away.poss, '%')+
       bar('Shots', ts.home.shots, ts.away.shots, '')+
       bar('On target', ts.home.sot, ts.away.sot, '')+
+      bar('xG', ts.home.xg, ts.away.xg, '')+
       bar('Fouls', ts.home.fouls, ts.away.fouls, '')+
       bar('Corners', ts.home.corners, ts.away.corners, '');
-    if(body) statsHTML=`<details class="ts-wrap"><summary>Match stats</summary><div class="ts">${body}</div></details>`;
+    if(body) statsHTML=`<div class="ts-inline"><div class="ts-cap">Match stats</div><div class="ts">${body}</div></div>`;
   }
   return `<div class="mc">
     <div class="mm"><span>Group ${g}</span>${badge}</div>
@@ -1307,7 +1312,9 @@ const KO_SCORERS = {
   88:{a:[{n:'Hany',m:55,og:true}], b:[{n:'Ashour',m:13}]},
   89:{a:[], b:[{n:'Ounahi',m:50},{n:'Ounahi',m:82},{n:'Rahimi',m:'90+'}]},
   90:{a:[], b:[{n:'Mbappé',pen:true}]},
-  91:{a:[{n:'Neymar',m:'90+10',pen:true}], b:[{n:'Haaland',m:79},{n:'Haaland',m:90}]}
+  91:{a:[{n:'Neymar',m:'90+10',pen:true}], b:[{n:'Haaland',m:79},{n:'Haaland',m:90}]},
+  93:{a:[], b:[{n:'Merino',m:'90+1'}]},
+  94:{a:[{n:'Tillman',m:31}], b:[{n:'De Ketelaere',m:9},{n:'De Ketelaere',m:32},{n:'Vanaken'},{n:'Lukaku',m:'90+'}]}
 };
 function koTeamFull(slot){
   if(slot.p) return resolveSlot(slot).team;
@@ -1359,6 +1366,27 @@ function koMatches(){
     return rows;
   }catch(e){ return []; }
 }
+// Reusable match-stats expander (looks up TEAMSTATS in either order). home=left, away=right.
+function matchStatsHTML(homeTeam, awayTeam){
+  if(!homeTeam||!awayTeam) return '';
+  let ts=TEAMSTATS[matchKey(homeTeam,awayTeam)], swap=false;
+  if(!ts){ ts=TEAMSTATS[matchKey(awayTeam,homeTeam)]; swap=true; }
+  if(!ts) return '';
+  const H = swap? ts.away : ts.home;
+  const A = swap? ts.home : ts.away;
+  if(!H||!A) return '';
+  let hcol=TEAMCOLOR[homeTeam]||'#8a8a8a', acol=TEAMCOLOR[awayTeam]||'#8a8a8a';
+  if(colorDist(hcol,acol)<70){ const altA=TEAMALT[awayTeam]; if(altA&&colorDist(hcol,altA)>=70)acol=altA; else{ const altH=TEAMALT[homeTeam]; if(altH&&colorDist(altH,acol)>=70)hcol=altH; } }
+  const num=v=> v==null?null:(parseFloat((''+v).replace(/[^0-9.]/g,''))||0);
+  const bar=(label,hRaw,aRaw,suffix)=>{
+    const hv=num(hRaw), av=num(aRaw); if(hv==null&&av==null) return '';
+    const h0=hv||0,a0=av||0,tot=h0+a0; const hp=tot?h0/tot*100:0, ap=tot?a0/tot*100:0;
+    const fmt=(raw,v)=> raw==null?'–':(v+(suffix||''));
+    return `<div class="ts-stat"><div class="ts-label">${label}</div><div class="ts-row"><span class="ts-v">${fmt(hRaw,h0)}</span><div class="ts-bars"><div class="ts-half left"><div class="ts-fill" style="width:${hp}%;background:${hcol}"></div></div><div class="ts-half right"><div class="ts-fill" style="width:${ap}%;background:${acol}"></div></div></div><span class="ts-v r">${fmt(aRaw,a0)}</span></div></div>`;
+  };
+  const body=bar('Possession',H.poss,A.poss,'%')+bar('Shots',H.shots,A.shots,'')+bar('On target',H.sot,A.sot,'')+bar('xG',H.xg,A.xg,'')+bar('Fouls',H.fouls,A.fouls,'')+bar('Corners',H.corners,A.corners,'');
+  return body?`<div class="ts-inline"><div class="ts-cap">Match stats</div><div class="ts">${body}</div></div>`:'';
+}
 function koCard(k){
   const sa=koSlotInfo(k.a), sb=koSlotInfo(k.b);
   const r=KO_RESULTS[k.num];
@@ -1390,6 +1418,7 @@ function koCard(k){
       <div class="te r ${bWin?'win':''}">${fb}<span class="tn-name">${sb.label}</span>${sb.team?rankBadge(sb.team):''}</div>
     </div>
     ${scorersHTML}
+    ${matchStatsHTML(sa.team, sb.team)}
     ${pens}
     <div class="mfoot"><span aria-hidden="true">📍</span><span>${koVenue(k.city)}</span></div>
   </div>`;
@@ -1488,24 +1517,24 @@ function renderJourney(){
   const rows=teamJourney(team);
   if(!rows.length){ box.innerHTML=`<div class="note">No matches found for ${team}.</div>`; return; }
   // Record + status across the whole tournament
-  let w=0,d=0,l=0,gf=0,ga=0;
-  const played=[], upcoming=[];
+  let w=0,d=0,l=0,gf=0,ga=0,cs=0;
+  const played=[], upcoming=[], formSeq=[];
   rows.forEach(r=>{
     if(r.kind==='g'){
       const [,,h,a,hs,as]=r.m;
       if(hs===null){ upcoming.push(r); return; }
       played.push(r);
       const mine=h===team?hs:as, opp=h===team?as:hs;
-      gf+=mine; ga+=opp;
-      if(mine>opp)w++; else if(mine<opp)l++; else d++;
+      gf+=mine; ga+=opp; if(opp===0)cs++;
+      if(mine>opp){w++;formSeq.push('W');} else if(mine<opp){l++;formSeq.push('L');} else {d++;formSeq.push('D');}
     }else{
       const rr=KO_RESULTS[r.k.num];
       if(!rr){ upcoming.push(r); return; }
       played.push(r);
       const ta=koTeamFull(r.k.a);
       const mine=ta===team?rr.hs:rr.as, opp=ta===team?rr.as:rr.hs;
-      gf+=mine; ga+=opp;
-      (koWinner(r.k.num)===team)?w++:l++;   // knockouts are always decisive
+      gf+=mine; ga+=opp; if(opp===0)cs++;
+      const won=(koWinner(r.k.num)===team); won?w++:l++; formSeq.push(won?'W':'L');   // knockouts are always decisive
     }
   });
   let status;
@@ -1520,9 +1549,18 @@ function renderJourney(){
   }else{
     status=`<span class="tj-out">Eliminated</span> · group stage`;
   }
+  const grp=(M.find(m=>m[2]===team||m[3]===team)||[])[1];
+  let finishLine='';
+  if(grp){ try{ const st=computeStandings(grp); const pos=st.findIndex(t=>t.n===team);
+    const lbl = pos===0?'Winners':pos===1?'Runners-up':pos===2?'3rd place':pos>=0?(pos+1)+'th':'';
+    if(lbl) finishLine=`Group ${grp} · ${lbl}`;
+  }catch(e){} }
+  const formHTML = formSeq.length ? `<span class="form">${formSeq.map(x=>`<span class="fd ${x.toLowerCase()}">${formIcon(x)}</span>`).join('')}</span>` : '';
   const summary=`<div class="tj-sum">
     <div class="tj-sum-top"><span class="fl">${flag(team)}</span><span class="tj-sum-name">${team}</span>${rankBadge(team)}</div>
-    <div class="tj-sum-line">${played.length} played · ${w}W ${d}D ${l}L · ${gf}–${ga} goals</div>
+    ${finishLine?`<div class="tj-sum-line">${finishLine}</div>`:''}
+    <div class="tj-sum-line">${played.length} played · ${w}W ${d}D ${l}L · ${gf}–${ga} goals · ${cs} clean sheet${cs===1?'':'s'}</div>
+    ${formHTML?`<div class="tj-sum-line tj-form">Form ${formHTML}<span class="tj-form-dir">oldest → latest</span></div>`:''}
     <div class="tj-sum-line">${status}</div>
   </div>`;
   box.innerHTML = summary + rows.map(r=>`<div class="dh">${r.day}</div>`+(r.kind==='g'?renderCard(r.m):koCard(r.k))).join('');
@@ -1911,19 +1949,22 @@ async function loadLiveData(){
           if(st==='post') recordKoResult(hn,an,hs,as, home.winner===true, away.winner===true);
         }
         // capture team match stats (possession, shots, fouls, corners) from scoreboard
+        const hSt=statsOf(home), aSt=statsOf(away);
         const rowTS=findRow(hn,an);
         if(rowTS){
           const kTS=matchKey(rowTS[2],rowTS[3]);
           const espnHomeIsOurHome=(mapName(hn)===rowTS[2]);
-          const hSt=statsOf(home), aSt=statsOf(away);
           TEAMSTATS[kTS]= espnHomeIsOurHome ? {home:hSt,away:aSt} : {home:aSt,away:hSt};
-          const hc=home.team&&home.team.color, ac=away.team&&away.team.color;
-          const ha=home.team&&home.team.alternateColor, aa=away.team&&away.team.alternateColor;
-          if(hc) TEAMCOLOR[mapName(hn)]='#'+hc;
-          if(ac) TEAMCOLOR[mapName(an)]='#'+ac;
-          if(ha) TEAMALT[mapName(hn)]='#'+ha;
-          if(aa) TEAMALT[mapName(an)]='#'+aa;
+        }else{
+          // Knockout ties (opponents never met in the group stage): key by mapped names.
+          TEAMSTATS[matchKey(mapName(hn),mapName(an))]={home:hSt,away:aSt};
         }
+        const hc=home.team&&home.team.color, ac=away.team&&away.team.color;
+        const ha=home.team&&home.team.alternateColor, aa=away.team&&away.team.alternateColor;
+        if(hc) TEAMCOLOR[mapName(hn)]='#'+hc;
+        if(ac) TEAMCOLOR[mapName(an)]='#'+ac;
+        if(ha) TEAMALT[mapName(hn)]='#'+ha;
+        if(aa) TEAMALT[mapName(an)]='#'+aa;
         // queue scorer fetch for finished games we haven't cached at this score
         if(st==='post'&&ev.id){
           let row=findRow(hn,an);
